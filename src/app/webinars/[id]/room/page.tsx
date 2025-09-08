@@ -106,6 +106,14 @@ export default function WebinarRoom() {
     }
   }, [joined, screenVideoRef.current, isScreenVideoReady])
 
+  // Initialize WebRTC when local stream and participants are ready
+  useEffect(() => {
+    if (joined && localStream && participants.length > 0) {
+      console.log('Initializing WebRTC with participants:', participants.length)
+      initializeWebRTC(participants, localStream)
+    }
+  }, [joined, localStream, participants, initializeWebRTC])
+
   const fetchWebinarDetails = async (id: string, token: string) => {
     setLoading(true)
     setError('')
@@ -150,10 +158,15 @@ export default function WebinarRoom() {
     const setupSocketListeners = () => {
       socketService.onParticipantJoined((data) => {
         setParticipants(prev => [...prev, data.user])
+        // Initialize WebRTC for new participant if we have local stream
+        if (localStream) {
+          handleParticipantJoined(data, localStream)
+        }
       })
 
       socketService.onParticipantLeft((data) => {
         setParticipants(prev => prev.filter(p => p.userId !== data.userId))
+        handleParticipantLeft(data)
       })
 
       socketService.onNewMessage((message) => {
@@ -652,52 +665,81 @@ export default function WebinarRoom() {
                     </div>
                   </div>
 
-                  {/* Remote Video or Screen Share */}
-                  <div className="bg-gray-700 rounded-lg overflow-hidden relative" style={{ minHeight: '200px', width: '100%', position: 'relative' }}>
-                    {/* Always render screen video element for readiness check */}
-                    <video
-                      ref={screenVideoRef}
-                      autoPlay
-                      muted
-                      playsInline
-                      className="w-full h-full object-contain"
-                      style={{
-                        minHeight: '200px',
-                        width: '100%',
-                        height: '100%',
-                        backgroundColor: '#374151',
-                        display: isScreenSharing ? 'block' : 'none'
-                      }}
-                      onLoadedData={() => {
-                        console.log('Screen share video loaded successfully')
-                        setVideoError('')
-                      }}
-                      onError={(e) => {
-                        console.error('Screen share video error:', e)
-                        setVideoError('Screen share error')
-                      }}
-                      onCanPlay={() => console.log('Screen share video can play')}
-                    />
-
-                    {/* Screen share label - only show when sharing */}
-                    {isScreenSharing && (
-                      <div className="absolute bottom-2 left-2 text-white text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
-                        Screen Share
-                      </div>
-                    )}
-
-                    {/* Placeholder when not screen sharing */}
-                    {!isScreenSharing && (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400" style={{ minHeight: '200px' }}>
-                        <div className="text-center">
-                          <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                          <p>Waiting for participants...</p>
+                  {/* Remote Videos or Screen Share */}
+                  {peers.length > 0 ? (
+                    peers.map((peer, index) => (
+                      <div key={peer.peerId} className="bg-gray-700 rounded-lg overflow-hidden relative" style={{ minHeight: '200px', width: '100%', position: 'relative' }}>
+                        <video
+                          ref={(el) => {
+                            if (el && peer.stream) {
+                              el.srcObject = peer.stream
+                            }
+                          }}
+                          autoPlay
+                          playsInline
+                          className="w-full h-full object-cover"
+                          style={{
+                            minHeight: '200px',
+                            width: '100%',
+                            height: '100%',
+                            backgroundColor: '#374151',
+                            display: 'block'
+                          }}
+                          onLoadedData={() => console.log(`Remote video ${peer.peerId} loaded`)}
+                          onError={(e) => console.error(`Remote video ${peer.peerId} error:`, e)}
+                        />
+                        <div className="absolute bottom-2 left-2 text-white text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
+                          {peer.userId === webinar?.host._id ? 'Host' : 'Participant'}
                         </div>
                       </div>
-                    )}
-                  </div>
+                    ))
+                  ) : (
+                    <div className="bg-gray-700 rounded-lg overflow-hidden relative" style={{ minHeight: '200px', width: '100%', position: 'relative' }}>
+                      {/* Always render screen video element for readiness check */}
+                      <video
+                        ref={screenVideoRef}
+                        autoPlay
+                        muted
+                        playsInline
+                        className="w-full h-full object-contain"
+                        style={{
+                          minHeight: '200px',
+                          width: '100%',
+                          height: '100%',
+                          backgroundColor: '#374151',
+                          display: isScreenSharing ? 'block' : 'none'
+                        }}
+                        onLoadedData={() => {
+                          console.log('Screen share video loaded successfully')
+                          setVideoError('')
+                        }}
+                        onError={(e) => {
+                          console.error('Screen share video error:', e)
+                          setVideoError('Screen share error')
+                        }}
+                        onCanPlay={() => console.log('Screen share video can play')}
+                      />
+
+                      {/* Screen share label - only show when sharing */}
+                      {isScreenSharing && (
+                        <div className="absolute bottom-2 left-2 text-white text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
+                          Screen Share
+                        </div>
+                      )}
+
+                      {/* Placeholder when not screen sharing */}
+                      {!isScreenSharing && (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400" style={{ minHeight: '200px' }}>
+                          <div className="text-center">
+                            <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            <p>Waiting for participants...</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Controls */}
