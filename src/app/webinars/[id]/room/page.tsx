@@ -106,14 +106,6 @@ export default function WebinarRoom() {
     }
   }, [joined, screenVideoRef.current, isScreenVideoReady])
 
-  // Initialize WebRTC when local stream and participants are ready
-  useEffect(() => {
-    if (joined && localStream && participants.length > 0) {
-      console.log('Initializing WebRTC with participants:', participants.length)
-      initializeWebRTC(participants, localStream)
-    }
-  }, [joined, localStream, participants, initializeWebRTC])
-
   const fetchWebinarDetails = async (id: string, token: string) => {
     setLoading(true)
     setError('')
@@ -158,15 +150,10 @@ export default function WebinarRoom() {
     const setupSocketListeners = () => {
       socketService.onParticipantJoined((data) => {
         setParticipants(prev => [...prev, data.user])
-        // Initialize WebRTC for new participant if we have local stream
-        if (localStream) {
-          handleParticipantJoined(data, localStream)
-        }
       })
 
       socketService.onParticipantLeft((data) => {
         setParticipants(prev => prev.filter(p => p.userId !== data.userId))
-        handleParticipantLeft(data)
       })
 
       socketService.onNewMessage((message) => {
