@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { socketService, Participant, ChatMessage } from '@/services/socketService'
-import { useWebRTC } from '@/hooks/useWebRTC'
+import { useWebRTC, PeerConnection } from '@/hooks/useWebRTC'
 
 interface Webinar {
   _id: string
@@ -214,6 +214,11 @@ export default function WebinarRoom() {
               }
               return Array.isArray(prev) ? [...prev, normalizedParticipant] : [normalizedParticipant]
             })
+
+            // Initialize WebRTC connection for new participant
+            if (localStream && handleParticipantJoined) {
+              handleParticipantJoined({ user: normalizedParticipant }, localStream)
+            }
           } else {
             console.error('Invalid participant joined data:', data)
           }
@@ -224,6 +229,11 @@ export default function WebinarRoom() {
           if (data?.userId) {
             console.log('Participant left:', data.userId)
             setParticipants(prev => Array.isArray(prev) ? prev.filter(p => p?.userId !== data.userId) : [])
+
+            // Handle WebRTC participant left
+            if (handleParticipantLeft) {
+              handleParticipantLeft({ userId: data.userId })
+            }
           } else {
             console.error('Invalid participant left data:', data)
           }
@@ -378,6 +388,13 @@ export default function WebinarRoom() {
 
       setIsVideoOn(true)
       setIsAudioOn(true)
+
+      // Initialize WebRTC after getting local stream
+      if (initializeWebRTC) {
+        console.log('Initializing WebRTC with local stream...')
+        initializeWebRTC(participants, stream)
+      }
+
       console.log('Media initialization complete')
     } catch (error) {
       console.error('Error accessing media devices:', error)
