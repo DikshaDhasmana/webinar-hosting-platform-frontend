@@ -238,6 +238,9 @@ export default function WebinarRoom() {
       // Connect to socket first
       await socketService.connect(token)
 
+      // Set up socket event listeners BEFORE joining room
+      setupSocketListeners()
+
       const response = await fetch(`http://localhost:5000/api/webinars/${webinar._id}/join`, {
         method: 'POST',
         headers: {
@@ -258,13 +261,10 @@ export default function WebinarRoom() {
         console.log('Room ID:', webinarId)
         console.log('Initial participants:', data.data.webinar.participantCount || 0)
 
-        // Join socket room
+        // Join socket room AFTER listeners are set up
         if (webinarId) {
           socketService.joinRoom({ roomId: webinarId })
         }
-
-        // Set up socket event listeners
-        setupSocketListeners()
       } else {
         setError(data.message || 'Failed to join webinar')
       }
