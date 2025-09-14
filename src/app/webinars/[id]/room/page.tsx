@@ -128,6 +128,8 @@ const RemoteVideo = ({ participant, stream }: { participant: Participant, stream
   )
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+
 export default function WebinarRoom() {
   const params = useParams()
   const webinarId = params?.id
@@ -268,7 +270,7 @@ export default function WebinarRoom() {
     setError('')
 
     try {
-      const response = await fetch(`http://localhost:5000/api/webinars/${id}`, {
+      const response = await fetch(`${API_BASE}/api/webinars/${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -451,7 +453,7 @@ export default function WebinarRoom() {
       console.log('=== SETTING UP EVENT LISTENERS ===')
       setupSocketListeners()
 
-      const response = await fetch(`http://localhost:5000/api/webinars/${webinar._id}/join`, {
+      const response = await fetch(`${API_BASE}/api/webinars/${webinar._id}/join`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

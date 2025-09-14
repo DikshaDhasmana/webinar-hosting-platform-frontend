@@ -92,7 +92,7 @@ class SocketService {
         this.socket.disconnect();
       }
 
-      this.socket = io('http://localhost:5000', {
+      this.socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000', {
         auth: { token },
         transports: ['websocket', 'polling'],
         timeout: 20000,
